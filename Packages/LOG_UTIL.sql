@@ -36,7 +36,7 @@ END;
 
 PROCEDURE log_start(p_proc_name IN VARCHAR2, 
                     p_text IN VARCHAR2 DEFAULT NULL) IS
-    v_text VARCHAR2(100);
+    v_text VARCHAR2(500);
     
 BEGIN
 IF p_text IS NULL THEN
@@ -53,7 +53,7 @@ END log_start;
 PROCEDURE log_finish(p_proc_name IN VARCHAR2, 
                      p_text IN VARCHAR2 DEFAULT NULL) IS
 
-v_text VARCHAR2(100);
+v_text VARCHAR2(500);
 BEGIN
 IF p_text IS NULL THEN
     v_text := 'Завершення логування, назва процесу = ' ||p_proc_name;
@@ -70,7 +70,7 @@ PROCEDURE log_error(p_proc_name IN VARCHAR2,
                     p_sqlerrm IN VARCHAR2, 
                     p_text IN VARCHAR2 DEFAULT NULL) IS
 
-v_text VARCHAR2(100);
+v_text VARCHAR2(500);
 BEGIN
     IF p_text IS NULL THEN
         v_text :=  'В процедурі ' || p_proc_name || ' сталася помилка. ' || p_sqlerrm;
