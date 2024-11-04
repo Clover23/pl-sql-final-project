@@ -40,7 +40,7 @@ PROCEDURE log_start(p_proc_name IN VARCHAR2,
     
 BEGIN
 IF p_text IS NULL THEN
-    v_text := 'Старт логування, назва процесу = '||p_proc_name;
+    v_text := 'РЎС‚Р°СЂС‚ Р»РѕРіСѓРІР°РЅРЅСЏ, РЅР°Р·РІР° РїСЂРѕС†РµСЃСѓ = '||p_proc_name;
 ELSE
     v_text := p_text;
 END IF;
@@ -56,7 +56,7 @@ PROCEDURE log_finish(p_proc_name IN VARCHAR2,
 v_text VARCHAR2(100);
 BEGIN
 IF p_text IS NULL THEN
-    v_text := 'Завершення логування, назва процесу = ' ||p_proc_name;
+    v_text := 'Р—Р°РІРµСЂС€РµРЅРЅСЏ Р»РѕРіСѓРІР°РЅРЅСЏ, РЅР°Р·РІР° РїСЂРѕС†РµСЃСѓ = ' ||p_proc_name;
 ELSE
     v_text := p_text;
 END IF;
@@ -73,7 +73,7 @@ PROCEDURE log_error(p_proc_name IN VARCHAR2,
 v_text VARCHAR2(100);
 BEGIN
     IF p_text IS NULL THEN
-        v_text :=  'В процедурі ' || p_proc_name || ' сталася помилка. ' || p_sqlerrm;
+        v_text :=  'Р’ РїСЂРѕС†РµРґСѓСЂС– ' || p_proc_name || ' СЃС‚Р°Р»Р°СЃСЏ РїРѕРјРёР»РєР°. ' || p_sqlerrm;
     ELSE
         v_text := p_text;
     END IF;    
