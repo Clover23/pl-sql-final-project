@@ -95,8 +95,7 @@ BEGIN
     END IF;
     
     --check salary
-    SELECT min_salary INTO v_min_salary FROM jobs WHERE job_id = p_job_id;
-    SELECT max_salary INTO v_max_salary FROM jobs WHERE job_id = p_job_id;
+    SELECT min_salary, max_salary INTO v_min_salary, v_max_salary FROM jobs WHERE job_id = p_job_id;
     IF p_salary < v_min_salary OR p_salary > v_max_salary THEN
         v_sqlerm := 'Введено неприпустиму заробітну плату для даного коду посади';
         log_util.log_error(p_proc_name => 'add_employee', p_sqlerrm => v_sqlerm);
@@ -125,6 +124,7 @@ BEGIN
         WHEN OTHERS THEN
         v_sqlerm := SQLERRM;
         log_util.log_error(p_proc_name => 'add_employee', p_sqlerrm => v_sqlerm);
+		RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
     END;
     
     log_util.log_finish(p_proc_name => 'add_employee');
