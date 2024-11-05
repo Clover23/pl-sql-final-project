@@ -11,13 +11,17 @@ PROCEDURE add_employee(p_first_name IN VARCHAR2,
                                 p_manager_id IN NUMBER DEFAULT 100,
                                 p_department_id IN NUMBER
                                 );
+                                
+                                
+PROCEDURE fire_an_employee(p_employee_id IN NUMBER);                               
+
 
 END util;
 
 
 
-
 -- package body
+
 
 
 CREATE OR REPLACE PACKAGE BODY util AS
@@ -45,6 +49,8 @@ BEGIN
     RETURN v_is_work_time;             
 END check_work_time;
 
+--PS-81
+
 PROCEDURE add_employee(p_first_name IN VARCHAR2,
                                 p_last_name IN VARCHAR2,
                                 p_email IN VARCHAR2,
@@ -65,6 +71,7 @@ v_salary_valid NUMBER;
 v_employee_id NUMBER;
 v_is_work_time BOOLEAN;
 v_sqlerm VARCHAR2(500);
+v_proc_name VARCHAR2(100) := 'add_employee';
 
 FUNCTION get_employee_id RETURN NUMBER IS
     v_employee_id NUMBER;
@@ -82,7 +89,7 @@ BEGIN
     SELECT COUNT(1) INTO v_job_exist FROM jobs WHERE job_id = p_job_id;
     IF v_job_exist = 0 THEN
         v_sqlerm := 'Введено неіснуючий код посади';
-        log_util.log_error(p_proc_name => 'add_employee', p_sqlerrm => v_sqlerm);
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
         RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
     END IF;
     
@@ -90,7 +97,7 @@ BEGIN
     SELECT COUNT(1) INTO v_department_exist FROM departments WHERE department_id = p_department_id;
     IF v_department_exist = 0 THEN
         v_sqlerm := 'Введено неіснуючий ідентифікатор відділу';
-        log_util.log_error(p_proc_name => 'add_employee', p_sqlerrm => v_sqlerm);
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
         RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
     END IF;
     
@@ -98,7 +105,7 @@ BEGIN
     SELECT min_salary, max_salary INTO v_min_salary, v_max_salary FROM jobs WHERE job_id = p_job_id;
     IF p_salary < v_min_salary OR p_salary > v_max_salary THEN
         v_sqlerm := 'Введено неприпустиму заробітну плату для даного коду посади';
-        log_util.log_error(p_proc_name => 'add_employee', p_sqlerrm => v_sqlerm);
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
         RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
         
     END IF;
@@ -107,7 +114,7 @@ BEGIN
     v_is_work_time := check_work_time();
     IF NOT v_is_work_time THEN
         v_sqlerm := 'Ви можете додавати нового співробітника лише в робочий час';
-        log_util.log_error(p_proc_name => 'add_employee', p_sqlerrm => v_sqlerm);
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
         RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
     END IF;
     
@@ -123,13 +130,79 @@ BEGIN
     EXCEPTION
         WHEN OTHERS THEN
         v_sqlerm := SQLERRM;
-        log_util.log_error(p_proc_name => 'add_employee', p_sqlerrm => v_sqlerm);
-		RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+        RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
     END;
     
-    log_util.log_finish(p_proc_name => 'add_employee');
+    log_util.log_finish(p_proc_name => v_proc_name);
     
 END add_employee;
+
+
+
+--PS-82
+
+PROCEDURE fire_an_employee(p_employee_id IN NUMBER)IS
+v_first_name VARCHAR2(100);
+v_last_name VARCHAR2(100);
+v_email VARCHAR2(100);
+v_phone_number VARCHAR2(100);
+v_job_id VARCHAR2(100);
+v_job_title VARCHAR2(100);
+v_hire_date DATE;
+v_fire_date DATE;
+
+v_is_work_time BOOLEAN;
+v_employee_exist NUMBER;
+v_proc_name VARCHAR2(100) := 'fire_an_employee';
+v_sqlerm VARCHAR2(500);
+BEGIN
+log_util.log_start(p_proc_name => 'fire_an_employee');
+
+--Перевіряємо employee id
+SELECT COUNT(1) INTO v_employee_exist FROM employees WHERE employee_id = p_employee_id; 
+    IF v_employee_exist = 0 THEN
+        v_sqlerm := 'Переданий співробітник не існує';
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+        RAISE_APPLICATION_ERROR(-20001,'Переданий співробітник не існує ');
+    END IF;
+    
+--Перевіряємо чи робочий час
+v_is_work_time := check_work_time;
+    IF NOT v_is_work_time THEN
+        v_sqlerm := 'Ви можете додавати нового співробітника лише в робочий час';
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+        RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
+    END IF;
+
+--Зберігаємо дані про працівника у змінні для подальшого інсерту в employees_history  
+    SELECT first_name, last_name, email, phone_number, hire_date, job_id INTO 
+        v_first_name, v_last_name, v_email, v_phone_number, v_hire_date, v_job_id FROM employees 
+        WHERE employee_id = p_employee_id;
+
+--Зберігаємо назву посади
+    SELECT job_title into v_job_title FROM jobs WHERE job_id = v_job_id;
+
+    BEGIN
+    --Видаляємо співробітника з таблиці employees
+        DELETE FROM employees WHERE employee_id = p_employee_id;
+        v_sqlerm := 'Співробітника ';
+        
+    --Додаємо співробітника в employees_history
+        v_fire_date := TRUNC(SYSDATE);        
+        INSERT INTO employees_history(employee_id, first_name, last_name, email, phone_number, job_title, hire_date, fire_date)
+        VALUES(emp_history_seq.NEXTVAL, v_first_name, v_last_name, v_email, v_phone_number, v_job_title, v_hire_date, v_fire_date);
+        
+    EXCEPTION
+        WHEN OTHERS THEN
+        v_sqlerm := 'Звільнення співробітника не відбулося. '|| SQLERRM;      
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+        RAISE_APPLICATION_ERROR(-20001, v_sqlerm);    
+    END;
+
+    log_util.log_finish(p_proc_name => v_proc_name);
+
+END fire_an_employee;
     
 
 END util;
