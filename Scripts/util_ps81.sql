@@ -47,7 +47,17 @@ util.add_employee(p_first_name => 'John',
                                 );
 END;
 
-
+--Помилка при інсерті
+BEGIN
+util.add_employee(p_first_name => 'John',
+                                p_last_name => 'Smith',
+                                p_email => 'johnsmith@gmail.com',
+                                p_phone_number => '5678945321ggggggggggggggggggggggggggggggggggggggggggggggggggg',
+                                p_job_id => 'AD_PRES',
+                                p_salary => 21000,
+                                p_department_id => 10
+                                );
+END;
 
 
 SELECT * FROM logs ORDER BY log_date DESC;
