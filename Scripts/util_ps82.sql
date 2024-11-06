@@ -4,7 +4,7 @@ END;
 
 
 BEGIN
-    util.fire_an_employee(p_employee_id => 300);
+    util.fire_an_employee(p_employee_id => 105);
 END;
 
 

@@ -10,7 +10,7 @@ CREATE TABLE employees_history(
     last_name varchar(255),
     email varchar(255),
     phone_number varchar(255),
-    job_title VARCHAR2(225),
+    job_id VARCHAR2(225),
     hire_date DATE,
     fire_date DATE,
     CONSTRAINT empid_pk PRIMARY KEY(employee_id)

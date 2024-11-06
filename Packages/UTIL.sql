@@ -13,15 +13,11 @@ PROCEDURE add_employee(p_first_name IN VARCHAR2,
                                 );
                                 
                                 
-PROCEDURE fire_an_employee(p_employee_id IN NUMBER);                               
-
+PROCEDURE fire_an_employee(p_employee_id IN NUMBER);
 
 END util;
 
-
-
 -- package body
-
 
 
 CREATE OR REPLACE PACKAGE BODY util AS
@@ -148,7 +144,6 @@ v_last_name VARCHAR2(100);
 v_email VARCHAR2(100);
 v_phone_number VARCHAR2(100);
 v_job_id VARCHAR2(100);
-v_job_title VARCHAR2(100);
 v_hire_date DATE;
 v_fire_date DATE;
 
@@ -157,41 +152,39 @@ v_employee_exist NUMBER;
 v_proc_name VARCHAR2(100) := 'fire_an_employee';
 v_sqlerm VARCHAR2(500);
 BEGIN
-log_util.log_start(p_proc_name => 'fire_an_employee');
+log_util.log_start(p_proc_name => v_proc_name);
 
 --Перевіряємо employee id
-SELECT COUNT(1) INTO v_employee_exist FROM employees WHERE employee_id = p_employee_id; 
-    IF v_employee_exist = 0 THEN
-        v_sqlerm := 'Переданий співробітник не існує';
-        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
-        RAISE_APPLICATION_ERROR(-20001,'Переданий співробітник не існує ');
-    END IF;
-    
---Перевіряємо чи робочий час
+BEGIN
+  SELECT first_name, last_name, email, phone_number, hire_date, job_id 
+  INTO v_first_name, v_last_name, v_email, v_phone_number, v_hire_date, v_job_id 
+  FROM employees 
+  WHERE employee_id = p_employee_id;
+EXCEPTION
+  WHEN no_data_found THEN
+    v_sqlerm := 'Переданий співробітник не існує';
+    log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+    raise_application_error(-20001, v_sqlerm);
+END;
+
+
+--Перевіряємо робочий час
 v_is_work_time := check_work_time;
     IF NOT v_is_work_time THEN
         v_sqlerm := 'Ви можете додавати нового співробітника лише в робочий час';
         log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
         RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
     END IF;
-
---Зберігаємо дані про працівника у змінні для подальшого інсерту в employees_history  
-    SELECT first_name, last_name, email, phone_number, hire_date, job_id INTO 
-        v_first_name, v_last_name, v_email, v_phone_number, v_hire_date, v_job_id FROM employees 
-        WHERE employee_id = p_employee_id;
-
---Зберігаємо назву посади
-    SELECT job_title into v_job_title FROM jobs WHERE job_id = v_job_id;
-
+  
     BEGIN
     --Видаляємо співробітника з таблиці employees
         DELETE FROM employees WHERE employee_id = p_employee_id;
-        v_sqlerm := 'Співробітника ';
+        v_sqlerm := 'Співробітника '||v_first_name||' '||v_last_name||', '||v_job_id||' '||'звільнено';
         
     --Додаємо співробітника в employees_history
         v_fire_date := TRUNC(SYSDATE);        
-        INSERT INTO employees_history(employee_id, first_name, last_name, email, phone_number, job_title, hire_date, fire_date)
-        VALUES(emp_history_seq.NEXTVAL, v_first_name, v_last_name, v_email, v_phone_number, v_job_title, v_hire_date, v_fire_date);
+        INSERT INTO employees_history(employee_id, first_name, last_name, email, phone_number, job_id, hire_date, fire_date)
+        VALUES(emp_history_seq.NEXTVAL, v_first_name, v_last_name, v_email, v_phone_number, v_job_id, v_hire_date, v_fire_date);
         
     EXCEPTION
         WHEN OTHERS THEN
@@ -200,9 +193,11 @@ v_is_work_time := check_work_time;
         RAISE_APPLICATION_ERROR(-20001, v_sqlerm);    
     END;
 
+    dbms_output.put_line(v_sqlerm);
     log_util.log_finish(p_proc_name => v_proc_name);
 
 END fire_an_employee;
-    
+
+
 
 END util;
