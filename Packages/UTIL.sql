@@ -200,4 +200,93 @@ END fire_an_employee;
 
 
 
+--PS-83
+
+PROCEDURE change_attribute_employee(p_employee_id IN NUMBER, 
+                                p_first_name IN VARCHAR2 DEFAULT NULL,
+                                p_last_name IN VARCHAR2 DEFAULT NULL,
+                                p_email IN VARCHAR2 DEFAULT NULL,
+                                p_phone_number IN VARCHAR2 DEFAULT NULL,
+                                p_job_id IN VARCHAR2 DEFAULT NULL,
+                                p_salary IN NUMBER DEFAULT NULL,
+                                p_commission_pct IN NUMBER DEFAULT NULL,
+                                p_manager_id IN NUMBER DEFAULT NULL,
+                                p_department_id IN NUMBER DEFAULT NULL) IS
+								
+
+/*
+Щоб мати можливість використати цикл замість численних IF...THEN створюємо власний тип,
+у якому приписуємо вхідний параметр до відповідного йому стовпця таблиці. 
+Я розумію що тут роблю не зовсім правильно, бо покладаюсь на автоматичне конвертування VARCHAR2 в NUMBER
+і в ідеалі напевно варто створити різні каталоги для різних типів вхідних параметрів і відповідно їм будувати 
+sql команду для оновлення таблиці, але цей код майже ідентчний буде (тільки наявність - відсутність лапок), 
+тому тут я уникаю повторів  
+*/
+TYPE catalog IS TABLE OF VARCHAR2(100) INDEX BY VARCHAR2(100);
+list catalog;
+
+sql_str VARCHAR2(500) := 'UPDATE employees SET';
+idx  VARCHAR2(100);
+smth_update BOOLEAN := FALSE;
+v_proc_name VARCHAR2(100) := 'change_attribute_employee';
+v_sqlerm VARCHAR2(500);
+v_message VARCHAR2(200) := 'У співробітника '||p_employee_id||' успішно оновлені атрибути';
+
+BEGIN
+
+--заповняємо каталог
+list('first_name') := p_first_name;
+list('last_name') := p_last_name;
+list('email') := p_email;
+list('phone_number') := p_phone_number;
+list('job_id') := p_job_id;
+list('salary') := p_salary;
+list('commission_pct') := p_commission_pct;
+list('manager_id') := p_manager_id;
+list('department_id') := p_department_id;
+
+idx       := list.first;
+
+--будуємо sql команду для кожного не нулового параметра (і перевіряємо чи є такі параметри взагалі)
+
+WHILE idx IS NOT NULL LOOP
+    IF list(idx) IS NOT NULL THEN
+        IF NOT smth_update THEN
+            sql_str := sql_str||' '||idx||' = '||''''||list(idx)||'''';
+            smth_update := TRUE;
+        ELSE 
+            sql_str := sql_str||', '||idx||' = '||''''||list(idx)||''''||' ';
+        END IF;
+    END IF;
+  idx := list.next(idx);    
+  END LOOP;
+ 
+--Якщо нема параметрів для оновлення 
+  IF NOT smth_update THEN
+    v_sqlerm := 'Нема чого оновлювати';
+    log_util.log_finish(p_proc_name => v_proc_name);
+    v_sqlerm := 'Нема чого оновлювати';
+    RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
+    
+  END IF;
+
+--Виконуємо оновлення
+BEGIN
+    sql_str := sql_str||' WHERE employee_id = '||p_employee_id;
+    EXECUTE IMMEDIATE sql_str;
+    dbms_output.put_line(v_message);
+    
+    EXCEPTION
+        WHEN OTHERS THEN
+        v_sqlerm := 'Сталася помилка '|| SQLERRM;      
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+        RAISE_APPLICATION_ERROR(-20001, v_sqlerm);
+
+END;
+log_util.log_finish(p_proc_name => v_proc_name);
+
+END change_attribute_employee;
+
+
+
 END util;
