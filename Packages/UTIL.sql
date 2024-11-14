@@ -288,5 +288,72 @@ log_util.log_finish(p_proc_name => v_proc_name);
 END change_attribute_employee;
 
 
+--PS-84
+
+PROCEDURE copy_table(p_source_scheme IN VARCHAR2 
+                       , p_target_scheme IN VARCHAR2 DEFAULT 'USER'
+                       , p_list_table IN VARCHAR2
+                       , p_copy_data IN BOOLEAN DEFAULT FALSE
+                       , po_result OUT VARCHAR2) IS
+v_result VARCHAR2(500); --для вихідного параметра                      
+v_table_exist NUMBER; --для перевірки чи існує таблиця в p_target_scheme
+v_insert_sql VARCHAR(500); --команда для вставки даних в таблицю
+
+--змінні для логування
+v_proc_name VARCHAR2(100) := 'copy_table';
+v_sqlerm VARCHAR2(500);
+BEGIN
+v_result := 'DONE';
+po_result := v_result;
+log_util.log_start(p_proc_name => v_proc_name);
+
+/* Створюємо таблицю, яка міститиме 2 стовпчики: 1)назва таблиці 2)sql команда для створення такої таблиці;
+	Потім перевіряємо кожен рядок, і якщо такої таблиці нема в p_target_scheme то створюємо її там;
+	Якщо потрібно скопіювати дані, то копіюємо їх
+*/
+FOR cc IN (
+SELECT table_name, 
+       'CREATE TABLE '||table_name||' ('||LISTAGG(column_name ||' '|| data_type||count_symbol,', ')WITHIN GROUP(ORDER BY column_id)||')' AS ddl_code
+FROM (SELECT table_name,
+             column_name,
+             data_type,
+             CASE
+               WHEN data_type IN ('VARCHAR2','CHAR') THEN '('||data_length||')'
+               WHEN data_type = 'DATE' THEN NULL
+               WHEN data_type = 'NUMBER' THEN replace( '('||data_precision||','||data_scale||')', '(,)', NULL)
+             END AS count_symbol,
+             column_id
+      FROM all_tab_columns
+      WHERE owner = p_source_scheme
+      AND table_name IN (SELECT * FROM table_from_list(p_list_table))
+      ORDER BY table_name, column_id)
+GROUP BY table_name
+) LOOP
+    BEGIN
+        SELECT COUNT(1) INTO v_table_exist FROM all_tab_columns WHERE table_name = cc.table_name AND owner = p_target_scheme;
+        IF v_table_exist = 0 THEN
+            EXECUTE IMMEDIATE cc.ddl_code;
+            IF p_copy_data = TRUE THEN
+                v_insert_sql := 'INSERT INTO '||cc.table_name||' SELECT * FROM '||p_source_scheme||'.'||cc.table_name;
+                EXECUTE IMMEDIATE v_insert_sql;
+            END IF;
+        ELSE CONTINUE;
+        END IF;
+   --Якщо помилка - то запис в лог і продовжуємо
+    EXCEPTION
+        WHEN OTHERS THEN
+        v_sqlerm := 'Сталася помилка '|| SQLERRM;      
+        log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+        CONTINUE;
+    END;
+
+v_sqlerm := 'Таблицю '||cc.table_name||' опрацьовано';    
+log_util.to_log(p_appl_proc => v_proc_name, p_message => v_sqlerm);
+END LOOP;
+
+RETURN;
+END copy_table;
+
+
 
 END util;
