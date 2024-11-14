@@ -313,7 +313,7 @@ log_util.log_start(p_proc_name => v_proc_name);
 */
 FOR cc IN (
 SELECT table_name, 
-       'CREATE TABLE '||table_name||' ('||LISTAGG(column_name ||' '|| data_type||count_symbol,', ')WITHIN GROUP(ORDER BY column_id)||')' AS ddl_code
+       'CREATE TABLE '||p_target_scheme||'.'||table_name||' ('||LISTAGG(column_name ||' '|| data_type||count_symbol,', ')WITHIN GROUP(ORDER BY column_id)||')' AS ddl_code
 FROM (SELECT table_name,
              column_name,
              data_type,
