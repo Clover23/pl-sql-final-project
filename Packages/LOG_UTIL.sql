@@ -9,6 +9,9 @@ PROCEDURE log_finish(p_proc_name IN VARCHAR2,
 PROCEDURE log_error(p_proc_name IN VARCHAR2, 
                     p_sqlerrm IN VARCHAR2, 
                     p_text IN VARCHAR2 DEFAULT NULL);
+                    
+PROCEDURE to_log(p_appl_proc IN VARCHAR2,
+                        p_message IN VARCHAR2);
 
 END log_util;
 
