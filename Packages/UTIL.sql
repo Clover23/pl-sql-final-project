@@ -15,6 +15,27 @@ PROCEDURE add_employee(p_first_name IN VARCHAR2,
                                 
 PROCEDURE fire_an_employee(p_employee_id IN NUMBER);
 
+PROCEDURE change_attribute_employee(p_employee_id IN NUMBER, 
+                                p_first_name IN VARCHAR2 DEFAULT NULL,
+                                p_last_name IN VARCHAR2 DEFAULT NULL,
+                                p_email IN VARCHAR2 DEFAULT NULL,
+                                p_phone_number IN VARCHAR2 DEFAULT NULL,
+                                p_job_id IN VARCHAR2 DEFAULT NULL,
+                                p_salary IN NUMBER DEFAULT NULL,
+                                p_commission_pct IN NUMBER DEFAULT NULL,
+                                p_manager_id IN NUMBER DEFAULT NULL,
+                                p_department_id IN NUMBER DEFAULT NULL);
+								
+PROCEDURE copy_table(p_source_scheme IN VARCHAR2 
+                       , p_target_scheme IN VARCHAR2 DEFAULT 'USER'
+                       , p_list_table IN VARCHAR2
+                       , p_copy_data IN BOOLEAN DEFAULT FALSE
+                       , po_result OUT VARCHAR2);
+								
+FUNCTION table_from_list(p_list_val IN VARCHAR2,
+                         p_separator IN VARCHAR2 DEFAULT ',') 
+	RETURN tab_value_list PIPELINED;								
+
 END util;
 
 -- package body
@@ -44,6 +65,42 @@ BEGIN
         
     RETURN v_is_work_time;             
 END check_work_time;
+
+
+
+
+FUNCTION table_from_list(p_list_val IN VARCHAR2,
+                         p_separator IN VARCHAR2 DEFAULT ',') 
+RETURN tab_value_list PIPELINED IS
+    out_rec tab_value_list := tab_value_list();
+    l_cur SYS_REFCURSOR;
+BEGIN
+    OPEN l_cur FOR
+    SELECT TRIM(REGEXP_SUBSTR(p_list_val, '[^'||p_separator||']+', 1, LEVEL)) AS cur_value
+    FROM dual
+    CONNECT BY LEVEL <= REGEXP_COUNT(p_list_val, p_separator) + 1;
+    BEGIN
+        LOOP
+            EXIT WHEN l_cur%NOTFOUND;
+            FETCH l_cur BULK COLLECT
+            INTO out_rec;
+                FOR i IN 1 .. out_rec.count LOOP
+                    PIPE ROW(
+                    out_rec(i));
+                END LOOP;
+        END LOOP;
+    CLOSE l_cur;
+EXCEPTION
+    WHEN OTHERS THEN
+    IF (l_cur%ISOPEN) THEN
+        CLOSE l_cur;
+        RAISE;
+    ELSE
+        RAISE;
+    END IF;
+    END;
+END table_from_list;
+
 
 --PS-81
 
