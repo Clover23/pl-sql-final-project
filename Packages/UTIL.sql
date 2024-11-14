@@ -27,7 +27,7 @@ PROCEDURE change_attribute_employee(p_employee_id IN NUMBER,
                                 p_department_id IN NUMBER DEFAULT NULL);
 								
 PROCEDURE copy_table(p_source_scheme IN VARCHAR2 
-                       , p_target_scheme IN VARCHAR2 DEFAULT 'USER'
+                       , p_target_scheme IN VARCHAR2 DEFAULT USER
                        , p_list_table IN VARCHAR2
                        , p_copy_data IN BOOLEAN DEFAULT FALSE
                        , po_result OUT VARCHAR2);
@@ -352,7 +352,7 @@ END change_attribute_employee;
 --PS-84
 
 PROCEDURE copy_table(p_source_scheme IN VARCHAR2 
-                       , p_target_scheme IN VARCHAR2 DEFAULT 'USER'
+                       , p_target_scheme IN VARCHAR2 DEFAULT USER
                        , p_list_table IN VARCHAR2
                        , p_copy_data IN BOOLEAN DEFAULT FALSE
                        , po_result OUT VARCHAR2) IS
@@ -364,7 +364,7 @@ v_insert_sql VARCHAR(500); --команда для вставки даних в 
 v_proc_name VARCHAR2(100) := 'copy_table';
 v_sqlerm VARCHAR2(500);
 BEGIN
-v_result := 'DONE';
+v_result := 'Успішно скопійовано таблиці';
 po_result := v_result;
 log_util.log_start(p_proc_name => v_proc_name);
 
@@ -374,7 +374,7 @@ log_util.log_start(p_proc_name => v_proc_name);
 */
 FOR cc IN (
 SELECT table_name, 
-       'CREATE TABLE '||p_target_scheme||'.'||table_name||' ('||LISTAGG(column_name ||' '|| data_type||count_symbol,', ')WITHIN GROUP(ORDER BY column_id)||')' AS ddl_code
+       'CREATE TABLE '||UPPER(p_target_scheme)||'.'||table_name||' ('||LISTAGG(column_name ||' '|| data_type||count_symbol,', ')WITHIN GROUP(ORDER BY column_id)||')' AS ddl_code
 FROM (SELECT table_name,
              column_name,
              data_type,
@@ -385,17 +385,17 @@ FROM (SELECT table_name,
              END AS count_symbol,
              column_id
       FROM all_tab_columns
-      WHERE owner = p_source_scheme
-      AND table_name IN (SELECT * FROM table_from_list(p_list_table))
+      WHERE owner = UPPER(p_source_scheme)
+      AND table_name IN (SELECT * FROM table_from_list(UPPER(p_list_table)))
       ORDER BY table_name, column_id)
 GROUP BY table_name
 ) LOOP
     BEGIN
-        SELECT COUNT(1) INTO v_table_exist FROM all_tab_columns WHERE table_name = cc.table_name AND owner = p_target_scheme;
+        SELECT COUNT(1) INTO v_table_exist FROM all_tab_columns WHERE table_name = cc.table_name AND owner = UPPER(p_target_scheme);
         IF v_table_exist = 0 THEN
             EXECUTE IMMEDIATE cc.ddl_code;
             IF p_copy_data = TRUE THEN
-                v_insert_sql := 'INSERT INTO '||cc.table_name||' SELECT * FROM '||p_source_scheme||'.'||cc.table_name;
+                v_insert_sql := 'INSERT INTO '||cc.table_name||' SELECT * FROM '||UPPER(p_source_scheme)||'.'||cc.table_name;
                 EXECUTE IMMEDIATE v_insert_sql;
             END IF;
         ELSE CONTINUE;
@@ -405,6 +405,7 @@ GROUP BY table_name
         WHEN OTHERS THEN
         v_sqlerm := 'Сталася помилка '|| SQLERRM;      
         log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+        po_result := 'Помилка при копіюванні таблиці '||cc.table_name;
         CONTINUE;
     END;
 
