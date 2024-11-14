@@ -31,6 +31,10 @@ PROCEDURE copy_table(p_source_scheme IN VARCHAR2
                        , p_list_table IN VARCHAR2
                        , p_copy_data IN BOOLEAN DEFAULT FALSE
                        , po_result OUT VARCHAR2);
+                       
+
+TYPE rec_value_list IS RECORD (value_list VARCHAR2(100));
+TYPE tab_value_list IS TABLE OF rec_value_list;
 								
 FUNCTION table_from_list(p_list_val IN VARCHAR2,
                          p_separator IN VARCHAR2 DEFAULT ',') 
