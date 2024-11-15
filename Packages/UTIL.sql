@@ -364,8 +364,6 @@ v_insert_sql VARCHAR(500); --команда для вставки даних в 
 v_proc_name VARCHAR2(100) := 'copy_table';
 v_sqlerm VARCHAR2(500);
 BEGIN
-v_result := 'Успішно скопійовано таблиці';
-po_result := v_result;
 log_util.log_start(p_proc_name => v_proc_name);
 
 /* Створюємо таблицю, яка міститиме 2 стовпчики: 1)назва таблиці 2)sql команда для створення такої таблиці;
@@ -413,7 +411,9 @@ v_sqlerm := 'Таблицю '||cc.table_name||' опрацьовано';
 log_util.to_log(p_appl_proc => v_proc_name, p_message => v_sqlerm);
 END LOOP;
 
-RETURN;
+v_result := 'Успішно скопійовано таблиці';
+po_result := v_result;
+
 END copy_table;
 
 
