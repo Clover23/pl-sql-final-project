@@ -1,3 +1,5 @@
+--SET DEFINE OFF;
+
 CREATE OR REPLACE PACKAGE util AS
 
 PROCEDURE add_employee(p_first_name IN VARCHAR2,
@@ -35,10 +37,23 @@ PROCEDURE copy_table(p_source_scheme IN VARCHAR2
 
 TYPE rec_value_list IS RECORD (value_list VARCHAR2(100));
 TYPE tab_value_list IS TABLE OF rec_value_list;
+
+TYPE rec_exchange IS RECORD (r030 NUMBER,
+                            txt VARCHAR2(100),
+                            rate NUMBER,
+                            cur VARCHAR2(100),
+                            exchangedate DATE );
+TYPE tab_exchange IS TABLE OF rec_exchange;
 								
 FUNCTION table_from_list(p_list_val IN VARCHAR2,
                          p_separator IN VARCHAR2 DEFAULT ',') 
-	RETURN tab_value_list PIPELINED;								
+	RETURN tab_value_list PIPELINED;
+    
+    
+FUNCTION get_currency(p_currency IN VARCHAR2 DEFAULT 'USD',
+                      p_exchangedate IN DATE DEFAULT SYSDATE) RETURN tab_exchange PIPELINED;    
+    
+PROCEDURE api_nbu_sync;
 
 END util;
 
@@ -105,6 +120,48 @@ EXCEPTION
     END;
 END table_from_list;
 
+
+FUNCTION get_currency(p_currency IN VARCHAR2 DEFAULT 'USD',
+                      p_exchangedate IN DATE DEFAULT SYSDATE) RETURN tab_exchange PIPELINED IS
+    out_rec tab_exchange := tab_exchange();
+    l_cur SYS_REFCURSOR;
+BEGIN
+    OPEN l_cur FOR
+    SELECT tt.r030, tt.txt, tt.rate, tt.cur, TO_DATE(tt.exchangedate, 'dd.mm.yyyy') AS exchangedate
+    FROM (SELECT get_needed_curr(p_valcode => p_currency,p_date => p_exchangedate) AS json_value
+    FROM dual)
+    CROSS JOIN json_table
+        (
+        json_value, '$[*]'
+        COLUMNS
+            (
+            r030 NUMBER PATH '$.r030',
+            txt VARCHAR2(100) PATH '$.txt',
+            rate NUMBER PATH '$.rate',
+            cur VARCHAR2(100) PATH '$.cc',
+            exchangedate VARCHAR2(100) PATH '$.exchangedate'
+            )
+    ) TT;
+        BEGIN
+            LOOP
+                EXIT WHEN l_cur%NOTFOUND;
+                FETCH l_cur BULK COLLECT
+                INTO out_rec;
+                    FOR i IN 1 .. out_rec.count LOOP
+                        PIPE ROW(out_rec(i));
+                    END LOOP;
+            END LOOP;
+            CLOSE l_cur;
+        EXCEPTION
+            WHEN OTHERS THEN
+                IF (l_cur%ISOPEN) THEN
+                    CLOSE l_cur;
+                RAISE;
+                ELSE
+                RAISE;
+                END IF;
+        END;
+END get_currency;
 
 --PS-81
 
@@ -416,6 +473,49 @@ po_result := v_result;
 
 END copy_table;
 
+
+--PS-85
+
+PROCEDURE api_nbu_sync IS
+v_list_currencies VARCHAR2(500); --список валют
+v_proc_name VARCHAR2(100) := 'api_nbu_sync';
+v_sqlerm VARCHAR2(500);
+-- get list currencies
+BEGIN
+    log_util.log_start(p_proc_name => v_proc_name);
+	--зчитуємо дані про список валют з таблиці sys_params
+    BEGIN
+        SELECT value_text INTO v_list_currencies FROM sys_params;
+        
+    EXCEPTION
+        WHEN no_data_found THEN
+            dbms_output.put_line('No record avialable');
+        WHEN too_many_rows THEN
+            dbms_output.put_line('Too many rows');
+        WHEN OTHERS THEN
+            v_sqlerm := 'Сталася помилка '|| SQLERRM;      
+            log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+    END;
+    
+    /*вставляємо дані в таблицю currency_exchange. Тут використовуємо 2 функції, які попередньо були створені в курсі:   
+	table_from_list (перетворює список валют в таблицю, щоб ми могли використати цикл для кожного з рядків)
+	та get_currency (парсить json з API НБУ як таблицю)
+	*/	
+    FOR cc IN (SELECT value_list AS curr FROM TABLE(util.table_from_list(p_list_val => v_list_currencies)))
+    LOOP
+        dbms_output.put_line(cc.curr);
+            INSERT INTO currency_exchange (r030, txt_description, rate, currency, exchangedate)
+            SELECT r030, txt, rate, cur, exchangedate FROM TABLE(util.get_currency(p_currency => cc.curr));       
+    END LOOP;
+    
+    log_util.log_finish(p_proc_name => v_proc_name);
+    
+    EXCEPTION
+    WHEN OTHERS THEN
+            v_sqlerm := 'Сталася помилка '|| SQLERRM;      
+            log_util.log_error(p_proc_name => v_proc_name, p_sqlerrm => v_sqlerm);
+    
+END api_nbu_sync;
 
 
 END util;
